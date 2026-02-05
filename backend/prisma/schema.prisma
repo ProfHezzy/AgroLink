@@ -1,0 +1,271 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FARMER
+  BUYER
+  RESEARCHER
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID_HELD
+  RELEASED
+  REFUNDED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  ESCROW_HOLD
+  ESCROW_RELEASE
+  COMMISSION
+  REFUND
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(BUYER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Profile fields
+  fullName  String?
+  phone     String?
+  bio       String?
+  location  String?
+  avatar    String?
+
+  wallet        Wallet?
+  products      Product[]
+  orders        Order[] 
+  reviews       Review[]
+  researchPosts ResearchPost[]
+  forumThreads  ForumThread[]
+  comments      Comment[]
+  notifications Notification[]
+  cartItems     CartItem[]
+  favorites     Favorite[]
+  favoriteOf    Favorite[]     @relation("FavoriteFarmer")
+
+  @@map("users")
+}
+
+model Wallet {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  balance       Decimal  @default(0) @db.Decimal(15, 2)
+  escrowBalance Decimal  @default(0) @db.Decimal(15, 2)
+  
+  // Banking integration fields
+  accountNumber String?  @unique // 11-digit virtual account number
+  bankName      String?  @default("AgroLink Reserve Bank")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions  WalletTransaction[]
+  payoutMethods PayoutMethod[]
+  cards         Card[]
+
+  @@map("wallets")
+}
+
+model PayoutMethod {
+  id            String   @id @default(uuid())
+  walletId      String
+  wallet        Wallet   @relation(fields: [walletId], references: [id])
+  bankName      String
+  accountNumber String
+  accountName   String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@map("payout_methods")
+}
+
+model Card {
+  id          String   @id @default(uuid())
+  walletId    String
+  wallet      Wallet   @relation(fields: [walletId], references: [id])
+  brand       String   // Visa, Mastercard, etc.
+  last4       String
+  expiryMonth String
+  expiryYear  String
+  holderName  String
+  createdAt   DateTime @default(now())
+
+  @@map("cards")
+}
+
+model WalletTransaction {
+  id        String          @id @default(uuid())
+  walletId  String
+  wallet    Wallet          @relation(fields: [walletId], references: [id])
+  amount    Decimal         @db.Decimal(15, 2)
+  type      TransactionType
+  status    String          @default("COMPLETED") // COMPLETED, PENDING, FAILED
+  reference String?         // Could be Order ID or Stripe Reference
+  createdAt DateTime        @default(now())
+
+  @@map("wallet_transactions")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Decimal  @db.Decimal(10, 2)
+  bulkPrice   Decimal? @db.Decimal(10, 2)
+  quantity    Int
+  category    String
+  images      String[]
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  reviews     Review[]
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+
+  @@map("products")
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  buyerId       String
+  buyer         User          @relation(fields: [buyerId], references: [id])
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  total         Decimal       @db.Decimal(10, 2)
+  commission    Decimal       @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  items         OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model ResearchPost {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tags      String[]
+
+  @@map("research_posts")
+}
+
+model ForumThread {
+  id        String    @id @default(uuid())
+  title     String
+  content   String
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime @updatedAt
+  
+  comments  Comment[]
+
+  @@map("forum_threads")
+}
+
+model Comment {
+  id        String      @id @default(uuid())
+  content   String
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id])
+  threadId  String
+  thread    ForumThread @relation(fields: [threadId], references: [id])
+  createdAt DateTime    @default(now())
+
+  @@map("comments")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  farmerId  String
+  farmer    User     @relation("FavoriteFarmer", fields: [farmerId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, farmerId])
+  @@map("favorites")
+}

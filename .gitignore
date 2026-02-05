@@ -1,0 +1,44 @@
+# Documentation & Project Specs (User Requested Ignore)
+PRD.md
+prompt.md
+payment.md
+QUICK_START.md
+DASHBOARDS_GUIDE.md
+DEVELOPMENT_SUMMARY.md
+VISUAL_GUIDE.md
+
+# Build & Dependencies (Root Level)
+node_modules/
+dist/
+.env
+.DS_Store
+
+# Nested Project Ignores
+**/node_modules/
+**/dist/
+**/.next/
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.pnpm-debug.log*
+
+# Database
+backend/prisma/migrations/
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
